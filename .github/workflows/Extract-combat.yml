@@ -1,32 +1,44 @@
-name: Extract CrimsonCombat Runtime
+name: Extract CrimsonCombat
 
 on:
+  workflow_dispatch:
   push:
     paths:
-      - "CrimsonCombat_StandaloneRuntime.zip"
-      - ".github/workflows/extract.yml"
-  workflow_dispatch:
+      - "*.zip"
+
+permissions:
+  contents: write
 
 jobs:
   extract:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Extract runtime ZIP
+      - name: Find and extract ZIP
+        shell: bash
         run: |
+          ZIP=$(find . -maxdepth 1 -type f -iname "*.zip" | head -n 1)
+
+          if [ -z "$ZIP" ]; then
+            echo "ERROR: No ZIP file found in repository root."
+            exit 1
+          fi
+
+          echo "Found: $ZIP"
+
           rm -rf CrimsonCombat
           mkdir -p CrimsonCombat
-          unzip -o CrimsonCombat_StandaloneRuntime.zip -d CrimsonCombat
 
-      - name: Show extracted files
-        run: |
-          echo "=== Extracted CrimsonCombat ==="
+          unzip -o "$ZIP" -d CrimsonCombat
+
+          echo "=== Extracted files ==="
           find CrimsonCombat -type f -print
 
       - name: Commit extracted files
+        shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -34,8 +46,9 @@ jobs:
           git add CrimsonCombat
 
           if git diff --cached --quiet; then
-            echo "No changes to commit."
-          else
-            git commit -m "Extract CrimsonCombat standalone runtime"
-            git push
+            echo "Nothing new to commit."
+            exit 0
           fi
+
+          git commit -m "Extract CrimsonCombat runtime"
+          git push
